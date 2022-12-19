@@ -18,9 +18,9 @@ upgrade_glibc_rpm() {
     upgrade_make_rpm
 
     cd /tmp
-    glibc="glibc-2.28"
+    glibc="glibc-2.24"
     #2.28版本需要升级bison
-    yum -y install bison
+    #yum -y install bison
     curl "http://ftp.gnu.org/gnu/glibc/${glibc}.tar.gz" -Ssl -o /tmp/${glibc}.tar.gz
     tar -zxvf ${glibc}.tar.gz
     cd ${glibc} && mkdir build && cd build
@@ -169,6 +169,7 @@ cd openresty-${or_ver} || exit 1
     --with-http_gunzip_module \
     --with-threads \
     --with-compat \
+    --without-luajit-gc64 \
     --with-luajit-xcflags="$luajit_xcflags" \
     $no_pool_patch \
     -j`nproc`

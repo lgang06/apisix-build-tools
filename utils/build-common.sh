@@ -22,7 +22,6 @@ build_apisix_base_rpm() {
 
     command -v gcc
     gcc --version
-
     yum-config-manager --add-repo https://openresty.org/package/centos/openresty.repo
     yum -y install openresty-openssl111-devel openresty-pcre-devel openresty-zlib-devel
 
