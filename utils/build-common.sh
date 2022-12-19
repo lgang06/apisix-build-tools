@@ -8,7 +8,7 @@ BUILD_PATH=${BUILD_PATH:-`pwd`}
 build_apisix_base_rpm() {
     if [[ $(rpm --eval '%{centos_ver}') == "7" ]]; then
         yum -y install centos-release-scl
-        yum -y install devtoolset-9 patch wget git make sudo
+        yum -y install devtoolset-9 devtoolset-9-gcc* patch wget git make sudo
         set +eu
         source scl_source enable devtoolset-9
         set -eu
@@ -49,7 +49,7 @@ build_apisix_base_deb() {
     fi
 
     DEBIAN_FRONTEND=noninteractive apt-get update
-    DEBIAN_FRONTEND=noninteractive apt-get install -y openresty-openssl111-dev openresty-pcre-dev openresty-zlib-dev
+    
 
     export_openresty_variables
     # fix OR_PREFIX

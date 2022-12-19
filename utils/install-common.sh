@@ -16,6 +16,7 @@ install_apisix_dependencies_rpm() {
     install_luarocks
 }
 
+
 install_dependencies_rpm() {
     # install basic dependencies
     yum -y install wget tar gcc automake autoconf libtool make curl git which unzip sudo

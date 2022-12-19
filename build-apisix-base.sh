@@ -2,6 +2,35 @@
 set -euo pipefail
 set -x
 
+upgrade_make_rpm() {
+    path=`pwd`;
+    cd /tmp
+    make="make-4.4"
+    curl "https://ftp.gnu.org/pub/gnu/make/${make}.tar.gz" -Ssl -o /tmp/${make}.tar.gz
+    tar -zxvf ${make}.tar.gz
+    cd $make
+    mkdir build && cd build && ../configure --prefix=/usr && make && make install
+    cd $path
+}
+
+upgrade_glibc_rpm() {
+    path=`pwd`;
+    upgrade_make_rpm
+
+    cd /tmp
+    glibc="glibc-2.28"
+    #2.28版本需要升级bison
+    yum -y install bison
+    curl "http://ftp.gnu.org/gnu/glibc/${glibc}.tar.gz" -Ssl -o /tmp/${glibc}.tar.gz
+    tar -zxvf ${glibc}.tar.gz
+    cd ${glibc} && mkdir build && cd build
+    ../configure --prefix=/usr --disable-profile --enable-add-ons --disable-werror
+    make && make install
+    rm -rf /tmp/glibc*
+    cd $path;
+}
+upgrade_glibc_rpm
+
 version=${version:-0.0.0}
 
 if ([ $# -gt 0 ] && [ "$1" == "latest" ]) || [ "$version" == "latest" ]; then
