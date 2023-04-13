@@ -40,15 +40,17 @@ if ([ $# -gt 0 ] && [ "$1" == "latest" ]) || [ "$version" == "latest" ]; then
     wasm_nginx_module_ver="main"
     lua_var_nginx_module_ver="master"
     grpc_client_nginx_module_ver="main"
+    amesh_ver="main"
     debug_args="--with-debug"
     OR_PREFIX=${OR_PREFIX:="/usr/local/openresty-debug"}
 else
     ngx_multi_upstream_module_ver="1.1.1"
     mod_dubbo_ver="1.0.2"
-    apisix_nginx_module_ver="1.11.0"
+    apisix_nginx_module_ver="1.12.0"
     wasm_nginx_module_ver="0.6.4"
     lua_var_nginx_module_ver="v0.5.3"
-    grpc_client_nginx_module_ver="v0.3.1"
+    grpc_client_nginx_module_ver="v0.4.2"
+    amesh_ver="main"
     debug_args=${debug_args:-}
     OR_PREFIX=${OR_PREFIX:="/usr/local/openresty"}
 fi
@@ -110,6 +112,14 @@ else
         grpc-client-nginx-module-${grpc_client_nginx_module_ver}
 fi
 
+if [ "$repo" == amesh ]; then
+    cp -r "$prev_workdir" ./amesh-${amesh_ver}
+else
+    git clone --depth=1 -b $amesh_ver \
+        https://github.com/api7/amesh \
+        amesh-${amesh_ver}
+fi
+
 cd ngx_multi_upstream_module-${ngx_multi_upstream_module_ver} || exit 1
 ./patch.sh ../openresty-${or_ver}
 cd ..
@@ -131,6 +141,13 @@ no_pool_patch=${no_pool_patch:-}
 grpc_engine_path="-DNGX_GRPC_CLI_ENGINE_PATH=$OR_PREFIX/libgrpc_engine.so -DNGX_HTTP_GRPC_CLI_ENGINE_PATH=$OR_PREFIX/libgrpc_engine.so"
 
 cd openresty-${or_ver} || exit 1
+# FIXME: remove this once 1.21.4.2 is released
+rm -rf bundle/LuaJIT-2.1-20220411
+lj_ver=2.1-20230119
+wget "https://github.com/openresty/luajit2/archive/v$lj_ver.tar.gz" -O "LuaJIT-$lj_ver.tar.gz"
+tar -xzf LuaJIT-$lj_ver.tar.gz
+mv luajit2-* bundle/LuaJIT-2.1-20220411
+
 ./configure --prefix="$OR_PREFIX" \
     --with-cc-opt="-DAPISIX_BASE_VER=$version $grpc_engine_path $cc_opt" \
     --with-ld-opt="-Wl,-rpath,$OR_PREFIX/wasmtime-c-api/lib $ld_opt" \
@@ -189,3 +206,22 @@ cd ..
 cd grpc-client-nginx-module-${grpc_client_nginx_module_ver} || exit 1
 sudo OPENRESTY_PREFIX="$OR_PREFIX" make install
 cd ..
+
+cd amesh-${amesh_ver} || exit 1
+sudo OPENRESTY_PREFIX="$OR_PREFIX" sh -c 'PATH="${PATH}:/usr/local/go/bin" make install'
+cd ..
+
+# package etcdctl
+ETCD_ARCH="amd64"
+ETCD_VERSION=${ETCD_VERSION:-'3.5.4'}
+ARCH=${ARCH:-$(uname -m | tr '[:upper:]' '[:lower:]')}
+
+if [[ $ARCH == "arm64" ]] || [[ $ARCH == "aarch64" ]]; then
+    ETCD_ARCH="arm64"
+fi
+
+wget -q https://github.com/etcd-io/etcd/releases/download/v${ETCD_VERSION}/etcd-v${ETCD_VERSION}-linux-${ETCD_ARCH}.tar.gz
+tar xf etcd-v${ETCD_VERSION}-linux-${ETCD_ARCH}.tar.gz
+# ship etcdctl under the same bin dir of openresty so we can package it easily
+sudo cp etcd-v${ETCD_VERSION}-linux-${ETCD_ARCH}/etcdctl "$OR_PREFIX"/bin/
+rm -rf etcd-v${ETCD_VERSION}-linux-${ETCD_ARCH}
