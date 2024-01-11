@@ -19,9 +19,14 @@ install_apisix_dependencies_rpm() {
 
 install_dependencies_rpm() {
     # install basic dependencies
-    yum -y install wget tar gcc automake autoconf libtool make curl git which unzip sudo
-    yum -y install epel-release
-    yum install -y yum-utils readline-devel
+    if [[ $IMAGE_BASE == "registry.access.redhat.com/ubi8/ubi" ]]; then
+        yum install -y --disablerepo=* --enablerepo=ubi-8-appstream-rpms --enablerepo=ubi-8-baseos-rpms wget tar gcc automake autoconf libtool make curl git which unzip sudo
+        yum install -y --disablerepo=* --enablerepo=ubi-8-appstream-rpms --enablerepo=ubi-8-baseos-rpms yum-utils
+    else
+        yum install -y wget tar gcc automake autoconf libtool make curl git which unzip sudo
+        yum install -y epel-release
+        yum install -y yum-utils readline-devel
+    fi
 }
 
 install_dependencies_deb() {
@@ -31,30 +36,13 @@ install_dependencies_deb() {
 }
 
 install_openresty_deb() {
-    # install openresty and openssl111
-    arch_path=""
-    if [[ $ARCH == "arm64" ]] || [[ $ARCH == "aarch64" ]]; then
-        arch_path="arm64/"
-    fi
     DEBIAN_FRONTEND=noninteractive apt-get update
-    DEBIAN_FRONTEND=noninteractive apt-get install -y libreadline-dev lsb-release libpcre3 libpcre3-dev libldap2-dev libssl-dev perl build-essential
+    DEBIAN_FRONTEND=noninteractive apt-get install -y libreadline-dev lsb-release libpcre3 libpcre3-dev libldap2-dev perl build-essential
     DEBIAN_FRONTEND=noninteractive apt-get -y install --no-install-recommends wget gnupg ca-certificates
-    wget -O - https://openresty.org/package/pubkey.gpg | apt-key add -
-    if [[ $IMAGE_BASE == "ubuntu" ]]; then
-        echo "deb http://openresty.org/package/${arch_path}ubuntu $(lsb_release -sc) main" | tee /etc/apt/sources.list.d/openresty.list
-    fi
-
-    if [[ $IMAGE_BASE == "debian" ]]; then
-        echo "deb http://openresty.org/package/${arch_path}debian $(lsb_release -sc) openresty" | tee /etc/apt/sources.list.d/openresty.list
-    fi
-    DEBIAN_FRONTEND=noninteractive apt-get update
-    DEBIAN_FRONTEND=noninteractive apt-get install -y openresty-openssl111-dev openresty
 }
 
 install_openresty_rpm() {
-    # install openresty and openssl111
-    yum-config-manager --add-repo https://openresty.org/package/centos/openresty.repo
-    yum install -y openresty openresty-openssl111-devel pcre pcre-devel openldap-devel
+    yum install -y pcre pcre-devel openldap-devel
 }
 
 install_luarocks() {
@@ -98,13 +86,13 @@ install_apisix() {
     # patch rockspec file to install with local repo
     sed -re '/^\s*source\s*=\s*\{$/{:src;n;s/^(\s*url\s*=).*$/\1".\/apisix",/;/\}/!bsrc}' \
          -e '/^\s*source\s*=\s*\{$/{:src;n;/^(\s*branch\s*=).*$/d;/\}/!bsrc}' \
-         -i rockspec/apisix-master-${iteration}.rockspec
+         -i apisix-master-${iteration}.rockspec
 
     # install rust
     install_rust
 
     # build the lib and specify the storage path of the package installed
-    luarocks make ./rockspec/apisix-master-${iteration}.rockspec --tree=/tmp/build/output/apisix/usr/local/apisix/deps --local
+    luarocks make ./apisix-master-${iteration}.rockspec --tree=/tmp/build/output/apisix/usr/local/apisix/deps --local
     chown -R "$(whoami)":"$(whoami)" /tmp/build/output
     cd ..
     # copy the compiled files to the package install directory
