@@ -61,7 +61,7 @@ apisix-dashboard-2.4-0.el7.x86_64.rpm
 
 Packaging an Ubuntu 20.04 package of Apache APISIX Dashboard
 ```sh
-make package type=deb app=apisix version=2.2 checkout=2.2
+make package type=deb app=dashboard version=2.2 checkout=2.2
 ls output/
 apisix-dashboard_2.2-0~ubuntu20.04_amd64.deb
 ```
@@ -104,14 +104,6 @@ Packaging an Ubuntu 20.04 package of Apache APISIX's OpenResty distribution
 make package type=deb app=apisix-runtime version=1.0.0
 ls output/
 apisix-runtime_1.0.0-0~ubuntu20.04_amd64.deb
-```
-
-Packaging an Alpine docker image of Apache APISIX's OpenResty distribution
-```sh
-make package type=apk app=apisix-runtime version=1.0.0 image_base=golang image_tag=1.19-alpine
-docker images
-REPOSITORY                  TAG       IMAGE ID       CREATED         SIZE
-apache/apisix-runtime-apk   1.0.0     cd456bf03d1c   9 seconds ago   504MB
 ```
 
 ## Details

@@ -33,9 +33,10 @@ upgrade_glibc_rpm
 
 version=${version:-0.0.0}
 
-OPENRESTY_VERSION=${OPENRESTY_VERSION:-1.21.4.3}
+#OPENRESTY_VERSION=${OPENRESTY_VERSION:-1.21.4.3}
+OPENRESTY_VERSION=${OPENRESTY_VERSION:-1.25.3.1}
 if [ "$OPENRESTY_VERSION" == "source" ] || [ "$OPENRESTY_VERSION" == "default" ]; then
-    OPENRESTY_VERSION="1.21.4.2"
+    OPENRESTY_VERSION="1.25.3.1"
 fi
 
 if ([ $# -gt 0 ] && [ "$1" == "latest" ]) || [ "$version" == "latest" ]; then
@@ -44,17 +45,17 @@ if ([ $# -gt 0 ] && [ "$1" == "latest" ]) || [ "$version" == "latest" ]; then
     apisix_nginx_module_ver="main"
     wasm_nginx_module_ver="main"
     lua_var_nginx_module_ver="master"
-    grpc_client_nginx_module_ver="main"
     lua_resty_events_ver="main"
     debug_args="--with-debug"
     OR_PREFIX=${OR_PREFIX:="/usr/local/openresty-debug"}
 else
-    ngx_multi_upstream_module_ver="1.1.1"
+    ngx_multi_upstream_module_ver="1.2.0"
     mod_dubbo_ver="1.0.2"
-    apisix_nginx_module_ver="1.14.0"
-    wasm_nginx_module_ver="0.6.5"
+#    apisix_nginx_module_ver="1.14.0"
+#    wasm_nginx_module_ver="0.6.5"
+    apisix_nginx_module_ver="1.16.0"
+    wasm_nginx_module_ver="0.7.0"
     lua_var_nginx_module_ver="v0.5.3"
-    grpc_client_nginx_module_ver="v0.4.4"
     lua_resty_events_ver="0.2.0"
     debug_args=${debug_args:-}
     OR_PREFIX=${OR_PREFIX:="/usr/local/openresty"}
@@ -108,14 +109,6 @@ else
         lua-var-nginx-module-${lua_var_nginx_module_ver}
 fi
 
-if [ "$repo" == grpc-client-nginx-module ]; then
-    cp -r "$prev_workdir" ./grpc-client-nginx-module-${grpc_client_nginx_module_ver}
-else
-    git clone --depth=1 -b $grpc_client_nginx_module_ver \
-        https://github.com/api7/grpc-client-nginx-module \
-        grpc-client-nginx-module-${grpc_client_nginx_module_ver}
-fi
-
 if [ "$repo" == lua-resty-events ]; then
     cp -r "$prev_workdir" ./lua-resty-events-${lua_resty_events_ver}
 else
@@ -140,9 +133,6 @@ cc_opt=${cc_opt:-}
 ld_opt=${ld_opt:-}
 luajit_xcflags=${luajit_xcflags:="-DLUAJIT_NUMMODE=2 -DLUAJIT_ENABLE_LUA52COMPAT"}
 no_pool_patch=${no_pool_patch:-}
-# TODO: remove old NGX_HTTP_GRPC_CLI_ENGINE_PATH once we have released a new
-# version of grpc-client-nginx-module
-grpc_engine_path="-DNGX_GRPC_CLI_ENGINE_PATH=$OR_PREFIX/libgrpc_engine.so -DNGX_HTTP_GRPC_CLI_ENGINE_PATH=$OR_PREFIX/libgrpc_engine.so"
 
 cd openresty-${OPENRESTY_VERSION} || exit 1
 
@@ -155,7 +145,7 @@ if [[ "$OPENRESTY_VERSION" == 1.21.4.1 ]] || [[ "$OPENRESTY_VERSION" == 1.19.* ]
   mv luajit2-* bundle/LuaJIT-2.1-20220411
 fi
 
-or_limit_ver=0.08
+or_limit_ver=0.09
 if [ ! -d "bundle/lua-resty-limit-traffic-$or_limit_ver" ]; then
     echo "ERROR: the official repository of lua-resty-limit-traffic has been updated, please sync to API7's repository." >&2
     exit 1
@@ -168,7 +158,7 @@ else
 fi
 
 ./configure --prefix="$OR_PREFIX" \
-    --with-cc-opt="-DAPISIX_BASE_VER=$version $grpc_engine_path $cc_opt" \
+    --with-cc-opt="-DAPISIX_BASE_VER=$version $cc_opt" \
     --with-ld-opt="-Wl,-rpath,$OR_PREFIX/wasmtime-c-api/lib $ld_opt" \
     $debug_args \
     --add-module=../mod_dubbo-${mod_dubbo_ver} \
@@ -178,7 +168,6 @@ fi
     --add-module=../apisix-nginx-module-${apisix_nginx_module_ver}/src/meta \
     --add-module=../wasm-nginx-module-${wasm_nginx_module_ver} \
     --add-module=../lua-var-nginx-module-${lua_var_nginx_module_ver} \
-    --add-module=../grpc-client-nginx-module-${grpc_client_nginx_module_ver} \
     --add-module=../lua-resty-events-${lua_resty_events_ver} \
     --with-poll_module \
     --with-pcre-jit \
@@ -189,6 +178,7 @@ fi
     --with-stream_ssl_module \
     --with-stream_ssl_preread_module \
     --with-http_v2_module \
+    --with-http_v3_module \
     --without-mail_pop3_module \
     --without-mail_imap_module \
     --without-mail_smtp_module \
@@ -220,10 +210,6 @@ sudo OPENRESTY_PREFIX="$OR_PREFIX" make install
 cd ..
 
 cd wasm-nginx-module-${wasm_nginx_module_ver} || exit 1
-sudo OPENRESTY_PREFIX="$OR_PREFIX" make install
-cd ..
-
-cd grpc-client-nginx-module-${grpc_client_nginx_module_ver} || exit 1
 sudo OPENRESTY_PREFIX="$OR_PREFIX" make install
 cd ..
 
