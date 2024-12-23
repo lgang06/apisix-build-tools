@@ -21,4 +21,5 @@ COPY package-apisix-base.sh /package-apisix-base.sh
 COPY post-install-apisix-base.sh /post-install-apisix-base.sh
 COPY usr /usr
 
+#RUN /bin/rm -f /etc/yum.repos.d/* && wget -O /etc/yum.repos.d/CentOS-Base.repo http://mirrors.aliyun.com/repo/Centos-7.repo
 RUN /package-apisix-base.sh

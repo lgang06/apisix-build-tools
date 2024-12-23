@@ -8,6 +8,7 @@ COPY ./utils/build-common.sh \
      build-apisix-base.sh \
      ./utils/determine-dist.sh \
      /tmp/
+COPY ./patch /tmp/patch
 
 
 ARG RESTY_OPENSSL_VERSION="1.1.1g"

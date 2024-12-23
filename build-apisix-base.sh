@@ -2,6 +2,20 @@
 set -euo pipefail
 set -x
 
+debug_args=${debug_args:-}
+ENABLE_FIPS=${ENABLE_FIPS:-"false"}
+OPENSSL_CONF_PATH=${OPENSSL_CONF_PATH:-$PWD/conf/openssl3/openssl.cnf}
+
+OR_PREFIX=${OR_PREFIX:="/usr/local/openresty"}
+OPENSSL_PREFIX=${OPENSSL_PREFIX:=$OR_PREFIX/openssl3}
+zlib_prefix=${OR_PREFIX}/zlib
+pcre_prefix=${OR_PREFIX}/pcre
+
+cc_opt=${cc_opt:-"-DNGX_LUA_ABORT_AT_PANIC -I$zlib_prefix/include -I$pcre_prefix/include -I$OPENSSL_PREFIX/include"}
+ld_opt=${ld_opt:-"-L$zlib_prefix/lib -L$pcre_prefix/lib -L$OPENSSL_PREFIX/lib -Wl,-rpath,$zlib_prefix/lib:$pcre_prefix/lib:$OPENSSL_PREFIX/lib"}
+
+OPENSSL_VERSION=${OPENSSL_VERSION:-"3.3.1"}
+
 upgrade_make_rpm() {
     path=`pwd`;
     cd /tmp
@@ -29,14 +43,51 @@ upgrade_glibc_rpm() {
     rm -rf /tmp/glibc*
     cd $path;
 }
+
+install_openssl_3(){
+    local fips=""
+    if [ "$ENABLE_FIPS" == "true" ]; then
+        fips="enable-fips"
+    fi
+    # required for openssl 3.x config
+    cpanm IPC/Cmd.pm
+    wget --no-check-certificate https://www.openssl.org/source/openssl-${OPENSSL_VERSION}.tar.gz
+    tar xvf openssl-${OPENSSL_VERSION}.tar.gz
+    cd openssl-${OPENSSL_VERSION}/
+    export LDFLAGS="-Wl,-rpath,$zlib_prefix/lib:$OPENSSL_PREFIX/lib"
+    ./config $fips \
+      shared \
+      zlib \
+          enable-camellia enable-seed enable-rfc3779 \
+          enable-cms enable-md2 enable-rc5 \
+          enable-weak-ssl-ciphers \
+      --prefix=$OPENSSL_PREFIX \
+      --libdir=lib               \
+      --with-zlib-lib=$zlib_prefix/lib \
+      --with-zlib-include=$zlib_prefix/include
+    make -j $(nproc) LD_LIBRARY_PATH= CC="gcc"
+    make install
+    if [ -f "$OPENSSL_CONF_PATH" ]; then
+        sudo cp "$OPENSSL_CONF_PATH" "$OPENSSL_PREFIX"/ssl/openssl.cnf
+    fi
+    if [ "$ENABLE_FIPS" == "true" ]; then
+        $OPENSSL_PREFIX/bin/openssl fipsinstall -out $OPENSSL_PREFIX/ssl/fipsmodule.cnf -module $OPENSSL_PREFIX/lib/ossl-modules/fips.so
+        sed -i 's@# .include fipsmodule.cnf@.include '"$OPENSSL_PREFIX"'/ssl/fipsmodule.cnf@g; s/# \(fips = fips_sect\)/\1\nbase = base_sect\n\n[base_sect]\nactivate=1\n/g' $OPENSSL_PREFIX/ssl/openssl.cnf
+    fi
+    cd ..
+}
+
 upgrade_glibc_rpm
+
+#upgrade openssl v3
+install_openssl_3
 
 version=${version:-0.0.0}
 
 #OPENRESTY_VERSION=${OPENRESTY_VERSION:-1.21.4.3}
-OPENRESTY_VERSION=${OPENRESTY_VERSION:-1.25.3.1}
+OPENRESTY_VERSION=${OPENRESTY_VERSION:-1.25.3.2}
 if [ "$OPENRESTY_VERSION" == "source" ] || [ "$OPENRESTY_VERSION" == "default" ]; then
-    OPENRESTY_VERSION="1.25.3.1"
+    OPENRESTY_VERSION="1.25.3.2"
 fi
 
 if ([ $# -gt 0 ] && [ "$1" == "latest" ]) || [ "$version" == "latest" ]; then
@@ -45,17 +96,17 @@ if ([ $# -gt 0 ] && [ "$1" == "latest" ]) || [ "$version" == "latest" ]; then
     apisix_nginx_module_ver="main"
     wasm_nginx_module_ver="main"
     lua_var_nginx_module_ver="master"
+    grpc_client_nginx_module_ver="main"
     lua_resty_events_ver="main"
     debug_args="--with-debug"
     OR_PREFIX=${OR_PREFIX:="/usr/local/openresty-debug"}
 else
     ngx_multi_upstream_module_ver="1.2.0"
     mod_dubbo_ver="1.0.2"
-#    apisix_nginx_module_ver="1.14.0"
-#    wasm_nginx_module_ver="0.6.5"
-    apisix_nginx_module_ver="1.16.0"
+    apisix_nginx_module_ver="1.16.1"
     wasm_nginx_module_ver="0.7.0"
     lua_var_nginx_module_ver="v0.5.3"
+    grpc_client_nginx_module_ver="v0.5.0"
     lua_resty_events_ver="0.2.0"
     debug_args=${debug_args:-}
     OR_PREFIX=${OR_PREFIX:="/usr/local/openresty"}
@@ -109,6 +160,14 @@ else
         lua-var-nginx-module-${lua_var_nginx_module_ver}
 fi
 
+if [ "$repo" == grpc-client-nginx-module ]; then
+    cp -r "$prev_workdir" ./grpc-client-nginx-module-${grpc_client_nginx_module_ver}
+else
+    git clone --depth=1 -b $grpc_client_nginx_module_ver \
+        https://github.com/api7/grpc-client-nginx-module \
+        grpc-client-nginx-module-${grpc_client_nginx_module_ver}
+fi
+
 if [ "$repo" == lua-resty-events ]; then
     cp -r "$prev_workdir" ./lua-resty-events-${lua_resty_events_ver}
 else
@@ -122,6 +181,11 @@ cd ngx_multi_upstream_module-${ngx_multi_upstream_module_ver} || exit 1
 cd ..
 
 cd apisix-nginx-module-${apisix_nginx_module_ver}/patch || exit 1
+# change nginx-error_page_contains_apisix output
+if [[ "$OPENRESTY_VERSION" == *1.25.3.* ]]; then
+  t_v="1.25.3.1"
+  [ -d "./${t_v}" ] && cp -r /tmp/patch/1.25.3-nginx-error_page_contains_apisix.patch ./${t_v}/nginx-error_page_contains_apisix.patch
+fi
 ./patch.sh ../../openresty-${OPENRESTY_VERSION}
 cd ../..
 
@@ -129,10 +193,11 @@ cd wasm-nginx-module-${wasm_nginx_module_ver} || exit 1
 ./install-wasmtime.sh
 cd ..
 
-cc_opt=${cc_opt:-}
-ld_opt=${ld_opt:-}
 luajit_xcflags=${luajit_xcflags:="-DLUAJIT_NUMMODE=2 -DLUAJIT_ENABLE_LUA52COMPAT"}
 no_pool_patch=${no_pool_patch:-}
+# TODO: remove old NGX_HTTP_GRPC_CLI_ENGINE_PATH once we have released a new
+# version of grpc-client-nginx-module
+grpc_engine_path="-DNGX_GRPC_CLI_ENGINE_PATH=$OR_PREFIX/libgrpc_engine.so -DNGX_HTTP_GRPC_CLI_ENGINE_PATH=$OR_PREFIX/libgrpc_engine.so"
 
 cd openresty-${OPENRESTY_VERSION} || exit 1
 
@@ -158,7 +223,7 @@ else
 fi
 
 ./configure --prefix="$OR_PREFIX" \
-    --with-cc-opt="-DAPISIX_BASE_VER=$version $cc_opt" \
+    --with-cc-opt="-DAPISIX_BASE_VER=$version $grpc_engine_path $cc_opt" \
     --with-ld-opt="-Wl,-rpath,$OR_PREFIX/wasmtime-c-api/lib $ld_opt" \
     $debug_args \
     --add-module=../mod_dubbo-${mod_dubbo_ver} \
@@ -168,6 +233,7 @@ fi
     --add-module=../apisix-nginx-module-${apisix_nginx_module_ver}/src/meta \
     --add-module=../wasm-nginx-module-${wasm_nginx_module_ver} \
     --add-module=../lua-var-nginx-module-${lua_var_nginx_module_ver} \
+    --add-module=../grpc-client-nginx-module-${grpc_client_nginx_module_ver} \
     --add-module=../lua-resty-events-${lua_resty_events_ver} \
     --with-poll_module \
     --with-pcre-jit \
@@ -210,6 +276,10 @@ sudo OPENRESTY_PREFIX="$OR_PREFIX" make install
 cd ..
 
 cd wasm-nginx-module-${wasm_nginx_module_ver} || exit 1
+sudo OPENRESTY_PREFIX="$OR_PREFIX" make install
+cd ..
+
+cd grpc-client-nginx-module-${grpc_client_nginx_module_ver} || exit 1
 sudo OPENRESTY_PREFIX="$OR_PREFIX" make install
 cd ..
 

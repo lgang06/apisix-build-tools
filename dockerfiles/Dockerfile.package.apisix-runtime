@@ -22,5 +22,6 @@ COPY --from=APISIX-RUNTIME /tmp/codename /tmp/codename
 COPY package-apisix-runtime.sh /package-apisix-runtime.sh
 COPY post-install-apisix-runtime.sh /post-install-apisix-runtime.sh
 COPY usr /usr
+#RUN /bin/rm -f /etc/yum.repos.d/* && wget -O /etc/yum.repos.d/CentOS-Base.repo http://mirrors.aliyun.com/repo/Centos-7.repo
 
 RUN /package-apisix-runtime.sh

@@ -8,25 +8,26 @@ BUILD_PATH=${BUILD_PATH:-`pwd`}
 build_apisix_base_rpm() {
     if [[ $(rpm --eval '%{centos_ver}') == "7" ]]; then
         yum -y install centos-release-scl
-        yum -y install devtoolset-9 devtoolset-9-gcc* patch wget git make sudo
+        sed -re "s/^#?\s*(mirrorlist)/#\1/g" -e "s|^#?\s*baseurl=http://mirror.centos.org|baseurl=http://mirrors.tencentyun.com|g" -i /etc/yum.repos.d/CentOS-*; \
+        yum -y install devtoolset-9 devtoolset-9-gcc* patch wget git make sudo cpanminus
         set +eu
         source scl_source enable devtoolset-9
         set -eu
     elif [[ $(rpm --eval '%{centos_ver}') == "8" ]]; then
-        dnf install -y gcc-toolset-9-toolchain patch wget git make sudo
+        dnf install -y gcc-toolset-9-toolchain patch wget git make sudo cpanminus
         dnf install -y yum-utils
         set +eu
         source /opt/rh/gcc-toolset-9/enable
         set -eu
     else
         dnf install -y yum-utils
-        yum -y install --disablerepo=* --enablerepo=ubi-8-appstream-rpms --enablerepo=ubi-8-baseos-rpms gcc gcc-c++ patch wget git make sudo xz
+        yum -y install --disablerepo=* --enablerepo=ubi-8-appstream-rpms --enablerepo=ubi-8-baseos-rpms gcc gcc-c++ patch wget git make sudo xz cpanminus
     fi
 
     command -v gcc
     gcc --version
     yum-config-manager --add-repo https://openresty.org/package/centos/openresty.repo
-    yum -y install openresty-openssl111-devel openresty-pcre-devel openresty-zlib-devel
+    yum -y install openresty-openssl3-devel openresty-pcre-devel openresty-zlib-devel
 
     export_apisix_base_openresty_variables
     ${BUILD_PATH}/build-apisix-base.sh
@@ -140,7 +141,7 @@ export_openresty_variables() {
 }
 
 export_apisix_base_openresty_variables() {
-    export openssl_prefix=/usr/local/openresty/openssl111
+    export openssl_prefix=/usr/local/openresty/openssl3
     export zlib_prefix=/usr/local/openresty/zlib
     export pcre_prefix=/usr/local/openresty/pcre
     export OR_PREFIX=/usr/local/openresty

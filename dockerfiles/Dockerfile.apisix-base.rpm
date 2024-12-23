@@ -12,11 +12,17 @@ RUN if [[ $(rpm --eval '%{centos_ver}') == "8" ]]; then \
         dnf install -y centos-release-stream; \
         dnf swap -y centos-{linux,stream}-repos; \
         dnf distro-sync -y; \
+    else \
+        sed -re "s/^#?\s*(mirrorlist)/#\1/g" -e "s|^#?\s*baseurl=http://mirror.centos.org|baseurl=http://mirrors.tencentyun.com|g" -i /etc/yum.repos.d/CentOS-*; \
+        #if [ "${IMAGE_BASE}" == "centos" ]; then \
+            /bin/rm -rf /etc/yum.repos.d/* && curl -o /etc/yum.repos.d/CentOS-Base.repo http://mirrors.cloud.tencent.com/repo/centos7_base.repo;\
+       # fi \
     fi
 
 COPY ./utils/build-common.sh /tmp/build-common.sh
 COPY build-apisix-base.sh /tmp/build-apisix-base.sh
 COPY ./utils/determine-dist.sh /tmp/determine-dist.sh
+COPY ./patch /tmp/patch
 
 WORKDIR /tmp
 

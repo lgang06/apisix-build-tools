@@ -6,6 +6,7 @@ FROM ${IMAGE_BASE}:${IMAGE_TAG} as build
 COPY ./utils/build-common.sh /tmp/build-common.sh
 COPY build-apisix-base.sh /tmp/build-apisix-base.sh
 COPY ./utils/determine-dist.sh /tmp/determine-dist.sh
+COPY ./patch /tmp/patch
 
 WORKDIR /tmp
 
