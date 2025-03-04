@@ -14,7 +14,8 @@ pcre_prefix=${OR_PREFIX}/pcre
 cc_opt=${cc_opt:-"-DNGX_LUA_ABORT_AT_PANIC -I$zlib_prefix/include -I$pcre_prefix/include -I$OPENSSL_PREFIX/include"}
 ld_opt=${ld_opt:-"-L$zlib_prefix/lib -L$pcre_prefix/lib -L$OPENSSL_PREFIX/lib -Wl,-rpath,$zlib_prefix/lib:$pcre_prefix/lib:$OPENSSL_PREFIX/lib"}
 
-OPENSSL_VERSION=${OPENSSL_VERSION:-"3.3.2"}
+OPENSSL_VERSION=${OPENSSL_VERSION:-"3.3.3"}
+BROTLI_VERSION="v1.1.0"
 
 upgrade_make_rpm() {
     path=`pwd`;
@@ -77,10 +78,34 @@ install_openssl_3(){
     cd ..
 }
 
+
+install_cmake() {
+    v="v3.31.6"
+    git clone --depth=1 -b ${v} https://github.com/Kitware/CMake.git cmake-${v}
+    cd cmake-${v}
+    OPENSSL_ROOT_DIR=${OPENSSL_PREFIX} ./bootstrap && make && sudo make install
+    cd ..
+}
+
+install_brotli() {
+    install_cmake
+    git clone --depth=1 -b ${BROTLI_VERSION} https://github.com/google/brotli.git brotli-${BROTLI_VERSION}
+    cd brotli-${BROTLI_VERSION} && mkdir build && cd build
+    cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/local/brotli ..
+    cmake --build . --config Release --target install
+    sh -c "echo /usr/local/brotli/lib >> /etc/ld.so.conf.d/brotli.conf"
+    sudo ldconfig  
+    cd ..
+}
+
+
 upgrade_glibc_rpm
 
 #upgrade openssl v3
 install_openssl_3
+
+#install brotli
+install_brotli
 
 version=${version:-0.0.0}
 

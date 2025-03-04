@@ -17,6 +17,8 @@ ENV ARTIFACT=${ARTIFACT}
 COPY --from=APISIX-BASE /usr/local/openresty /tmp/build/output/openresty
 COPY --from=APISIX-BASE /tmp/dist /tmp/dist
 COPY --from=APISIX-BASE /tmp/codename /tmp/codename
+# add brotli software
+COPY --from=APISIX-BASE /usr/local/brotli /tmp/build/output/brotli
 COPY package-apisix-base.sh /package-apisix-base.sh
 COPY post-install-apisix-base.sh /post-install-apisix-base.sh
 COPY usr /usr
