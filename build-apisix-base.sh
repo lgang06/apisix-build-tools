@@ -14,14 +14,14 @@ pcre_prefix=${OR_PREFIX}/pcre
 cc_opt=${cc_opt:-"-DNGX_LUA_ABORT_AT_PANIC -I$zlib_prefix/include -I$pcre_prefix/include -I$OPENSSL_PREFIX/include"}
 ld_opt=${ld_opt:-"-L$zlib_prefix/lib -L$pcre_prefix/lib -L$OPENSSL_PREFIX/lib -Wl,-rpath,$zlib_prefix/lib:$pcre_prefix/lib:$OPENSSL_PREFIX/lib"}
 
-OPENSSL_VERSION=${OPENSSL_VERSION:-"3.3.3"}
+OPENSSL_VERSION=${OPENSSL_VERSION:-"3.4.2"}
 BROTLI_VERSION="v1.1.0"
 
 upgrade_make_rpm() {
     path=`pwd`;
     cd /tmp
     make="make-4.4"
-    curl "https://ftp.gnu.org/pub/gnu/make/${make}.tar.gz" -Ssl -o /tmp/${make}.tar.gz
+    curl "https://ftp.wayne.edu/gnu/make/${make}.tar.gz" -Ssl -o /tmp/${make}.tar.gz
     tar -zxvf ${make}.tar.gz
     cd $make
     mkdir build && cd build && ../configure --prefix=/usr && make && make install
@@ -36,7 +36,7 @@ upgrade_glibc_rpm() {
     glibc="glibc-2.24"
     #2.28版本需要升级bison
     #yum -y install bison
-    curl "http://ftp.gnu.org/gnu/glibc/${glibc}.tar.gz" -Ssl -o /tmp/${glibc}.tar.gz
+    curl "http://ftp.wayne.edu/gnu/glibc/${glibc}.tar.gz" -Ssl -o /tmp/${glibc}.tar.gz
     tar -zxvf ${glibc}.tar.gz
     cd ${glibc} && mkdir build && cd build
     ../configure --prefix=/usr --disable-profile --enable-add-ons --disable-werror
@@ -110,9 +110,10 @@ install_brotli
 version=${version:-0.0.0}
 
 #OPENRESTY_VERSION=${OPENRESTY_VERSION:-1.21.4.3}
-OPENRESTY_VERSION=${OPENRESTY_VERSION:-1.25.3.2}
+#OPENRESTY_VERSION=${OPENRESTY_VERSION:-1.25.3.2}
+OPENRESTY_VERSION=${OPENRESTY_VERSION:-1.27.1.2}
 if [ "$OPENRESTY_VERSION" == "source" ] || [ "$OPENRESTY_VERSION" == "default" ]; then
-    OPENRESTY_VERSION="1.25.3.2"
+    OPENRESTY_VERSION="1.27.1.2"
 fi
 
 if ([ $# -gt 0 ] && [ "$1" == "latest" ]) || [ "$version" == "latest" ]; then
@@ -126,9 +127,9 @@ if ([ $# -gt 0 ] && [ "$1" == "latest" ]) || [ "$version" == "latest" ]; then
     debug_args="--with-debug"
     OR_PREFIX=${OR_PREFIX:="/usr/local/openresty-debug"}
 else
-    ngx_multi_upstream_module_ver="1.2.0"
+    ngx_multi_upstream_module_ver="1.3.2"
     mod_dubbo_ver="1.0.2"
-    apisix_nginx_module_ver="1.16.1"
+    apisix_nginx_module_ver="1.19.3"
     wasm_nginx_module_ver="0.7.0"
     lua_var_nginx_module_ver="v0.5.3"
     grpc_client_nginx_module_ver="v0.5.0"
@@ -207,7 +208,7 @@ cd ..
 
 cd apisix-nginx-module-${apisix_nginx_module_ver}/patch || exit 1
 # change nginx-error_page_contains_apisix output
-if [[ "$OPENRESTY_VERSION" == *1.25.3.* ]]; then
+if [[ "$OPENRESTY_VERSION" == *1.25.3.* ]] || [[ "$OPENRESTY_VERSION" == *1.27.*.* ]]; then
   t_v="1.25.3.1"
   [ -d "./${t_v}" ] && cp -r /tmp/patch/1.25.3-nginx-error_page_contains_apisix.patch ./${t_v}/nginx-error_page_contains_apisix.patch
 fi
@@ -309,7 +310,11 @@ sudo OPENRESTY_PREFIX="$OR_PREFIX" make install
 cd ..
 
 cd lua-resty-events-${lua_resty_events_ver} || exit 1
-sudo OPENRESTY_PREFIX="$OR_PREFIX" make install
+#sudo OPENRESTY_PREFIX="$OR_PREFIX" make install
+sudo install -d "$OR_PREFIX"/lualib/resty/events/
+sudo install -m 664 lualib/resty/events/*.lua "$OR_PREFIX"/lualib/resty/events/
+sudo install -d "$OR_PREFIX"/lualib/resty/events/compat/
+sudo install -m 644 lualib/resty/events/compat/*.lua "$OR_PREFIX"/lualib/resty/events/compat/
 cd ..
 
 # package etcdctl

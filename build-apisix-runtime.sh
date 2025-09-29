@@ -21,10 +21,10 @@ ld_opt=${ld_opt:-"-L$zlib_prefix/lib -L$pcre_prefix/lib -L$OPENSSL_PREFIX/lib -W
 
 # dependencies for building openresty
 OPENSSL_VERSION=${OPENSSL_VERSION:-"3.2.0"}
-OPENRESTY_VERSION="1.25.3.2"
+OPENRESTY_VERSION="1.27.1.2"
 ngx_multi_upstream_module_ver="1.2.0"
 mod_dubbo_ver="1.0.2"
-apisix_nginx_module_ver="1.16.0"
+apisix_nginx_module_ver="1.16.2"
 wasm_nginx_module_ver="0.7.0"
 lua_var_nginx_module_ver="v0.5.3"
 grpc_client_nginx_module_ver="v0.5.0"
