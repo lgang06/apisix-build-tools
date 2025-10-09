@@ -17,11 +17,13 @@ ARCH=${ARCH:-`(uname -m | tr '[:upper:]' '[:lower:]')`}
 openresty_zlib_version="1.2.12-1"
 #openresty_openssl111_version="1.1.1n-1"
 openresty_pcre_version="8.45-1"
+dep_libyaml="libyaml-devel"
 if [ "$PACKAGE_TYPE" == "deb" ]; then
     pkg_suffix="${codename}1"
     openresty_zlib_version="$openresty_zlib_version~$pkg_suffix"
 #    openresty_openssl111_version="$openresty_openssl111_version~$pkg_suffix"
     openresty_pcre_version="$openresty_pcre_version~$pkg_suffix"
+    dep_libyaml="libyaml-dev"
 fi
 
 fpm -f -s dir -t "$PACKAGE_TYPE" \
@@ -34,6 +36,7 @@ fpm -f -s dir -t "$PACKAGE_TYPE" \
     -x openresty/pcre \
     -d "openresty-zlib >= $openresty_zlib_version" \
     -d "openresty-pcre >= $openresty_pcre_version" \
+    -d "$dep_libyaml" \
     --post-install post-install-apisix-base.sh \
     --description "APISIX's OpenResty distribution." \
     --license "ASL 2.0" \

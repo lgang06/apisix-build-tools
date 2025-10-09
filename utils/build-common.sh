@@ -9,7 +9,7 @@ build_apisix_base_rpm() {
     if [[ $(rpm --eval '%{centos_ver}') == "7" ]]; then
         yum -y install centos-release-scl
         sed -re "s/^#?\s*(mirrorlist)/#\1/g" -e "s|^#?\s*baseurl=http://mirror.centos.org|baseurl=http://mirrors.tencentyun.com|g" -i /etc/yum.repos.d/CentOS-*; \
-        yum -y install devtoolset-9 devtoolset-9-gcc* patch wget git make sudo cpanminus
+        yum -y install --nogpgcheck devtoolset-9 devtoolset-9-gcc* patch wget git make sudo cpanminus
         set +eu
         source scl_source enable devtoolset-9
         set -eu
@@ -21,7 +21,7 @@ build_apisix_base_rpm() {
         set -eu
     else
         dnf install -y yum-utils
-        yum -y install --disablerepo=* --enablerepo=ubi-8-appstream-rpms --enablerepo=ubi-8-baseos-rpms gcc gcc-c++ patch wget git make sudo xz cpanminus
+        yum -y install --nogpgcheck --disablerepo=* --enablerepo=ubi-8-appstream-rpms --enablerepo=ubi-8-baseos-rpms gcc gcc-c++ patch wget git make sudo xz cpanminus
     fi
 
     command -v gcc

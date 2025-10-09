@@ -14,7 +14,7 @@ pcre_prefix=${OR_PREFIX}/pcre
 cc_opt=${cc_opt:-"-DNGX_LUA_ABORT_AT_PANIC -I$zlib_prefix/include -I$pcre_prefix/include -I$OPENSSL_PREFIX/include"}
 ld_opt=${ld_opt:-"-L$zlib_prefix/lib -L$pcre_prefix/lib -L$OPENSSL_PREFIX/lib -Wl,-rpath,$zlib_prefix/lib:$pcre_prefix/lib:$OPENSSL_PREFIX/lib"}
 
-OPENSSL_VERSION=${OPENSSL_VERSION:-"3.4.2"}
+OPENSSL_VERSION=${OPENSSL_VERSION:-"3.3.4"}
 BROTLI_VERSION="v1.1.0"
 
 upgrade_make_rpm() {
@@ -111,9 +111,9 @@ version=${version:-0.0.0}
 
 #OPENRESTY_VERSION=${OPENRESTY_VERSION:-1.21.4.3}
 #OPENRESTY_VERSION=${OPENRESTY_VERSION:-1.25.3.2}
-OPENRESTY_VERSION=${OPENRESTY_VERSION:-1.27.1.2}
+OPENRESTY_VERSION=${OPENRESTY_VERSION:-1.27.1.1}
 if [ "$OPENRESTY_VERSION" == "source" ] || [ "$OPENRESTY_VERSION" == "default" ]; then
-    OPENRESTY_VERSION="1.27.1.2"
+    OPENRESTY_VERSION="1.27.1.1"
 fi
 
 if ([ $# -gt 0 ] && [ "$1" == "latest" ]) || [ "$version" == "latest" ]; then
@@ -143,6 +143,7 @@ repo=$(basename "$prev_workdir")
 workdir=$(mktemp -d)
 cd "$workdir" || exit 1
 
+yum -y install libyaml-devel
 wget --no-check-certificate https://openresty.org/download/openresty-${OPENRESTY_VERSION}.tar.gz
 tar -zxvpf openresty-${OPENRESTY_VERSION}.tar.gz > /dev/null
 
